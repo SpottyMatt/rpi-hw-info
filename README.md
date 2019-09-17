@@ -9,7 +9,7 @@ If the hardware info cannot be detected, it will print an error message to stder
 
 You might use this to make scripts compatible with multiple Raspberry Pi models.
 
-Detection is based on decoding the hardware "revision" per the [Raspberry Pi Documentation](https://www.raspberrypi.org/documentation/hardware/raspberrypi/revision-codes/README.md)
+Detection is based on decoding the hardware "revision" per the [Raspberry Pi Documentation](https://www.raspberrypi.org/documentation/hardware/raspberrypi/revision-codes/README.md).
 
 Output Format
 ==============================
