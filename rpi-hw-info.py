@@ -38,13 +38,13 @@ model_id_bitmask = int( "0xFF0", 16 )
 
 for line in cpuinfo.stdout.readlines():
         fields = line.strip().split()
-        if fields and fields[0] == "Revision" :
+        if fields and fields[0] == b"Revision" :
                 revision = fields[2]
-                revision_hex = int( "0x" + revision, 16 )
+                revision_hex = int( b"0x" + revision, 16 )
 
                 revision_format = ( revision_hex & revision_format_bitmask ) >> 23
                 if revision_format == 0:
-                        sys.exit( revision + ": older revision format `" + str( revision_format ) + "' is not supported." )
+                        sys.exit( revision.decode() + ": older revision format `" + str( revision_format ) + "' is not supported." )
 
                 model_id = ( revision_hex & model_id_bitmask ) >> 4
                 for rpi in rpi_models :
