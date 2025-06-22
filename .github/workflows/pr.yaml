@@ -51,6 +51,9 @@ jobs:
           echo "PYTHON_CMD=python" >> $GITHUB_ENV
         fi
 
+    - name: Check poetry.lock is up-to-date
+      run: poetry check --lock
+
     - name: Install Dependencies
       run: |
         if [[ "${{ matrix.compatibility_mode }}" == "true" ]]; then
