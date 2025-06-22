@@ -66,6 +66,8 @@ jobs:
     - name: Generate changelog preview
       if: steps.release_check.outputs.will_release == 'true'
       id: changelog
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         # Generate changelog in dry-run mode
         poetry run semantic-release changelog > changelog_preview.md
