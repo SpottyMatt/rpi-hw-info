@@ -1,0 +1,152 @@
+name: Expected Release Preview
+
+on:
+  pull_request:
+    branches: [ master ]
+    types: [opened, synchronize, reopened]
+
+env:
+  CI_PYTHON_VERSION: '3.10'
+
+jobs:
+  preview-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write  # To post comments
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Need full history for semantic-release
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Configure git for semantic-release
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+    - name: Simulate merge to master
+      run: |
+        # Checkout the target branch (master)
+        git checkout ${{ github.event.pull_request.base.ref }}
+        
+        # Merge in the PR changes to simulate post-merge state
+        git merge --no-ff ${{ github.event.pull_request.head.sha }} -m "Simulated merge for release preview"
+        
+        echo "Now on branch: $(git branch --show-current)"
+        echo "Latest commit: $(git log -1 --oneline)"
+
+    - run: pipx install poetry
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.CI_PYTHON_VERSION }}
+        cache: 'poetry'
+
+    - name: Install dependencies
+      run: poetry install --only dev
+
+    - name: Check what release would be made
+      id: release_check
+      run: |
+        # Get the expected next version
+        NEXT_VERSION=$(poetry run semantic-release version --print)
+        echo "next_version=$NEXT_VERSION" >> $GITHUB_OUTPUT
+        
+        if [ "$NEXT_VERSION" != "No release will be made" ]; then
+          echo "will_release=true" >> $GITHUB_OUTPUT
+          echo "Expected next version: $NEXT_VERSION"
+        else
+          echo "will_release=false" >> $GITHUB_OUTPUT
+          echo "No release will be made"
+        fi
+
+    - name: Generate changelog preview
+      if: steps.release_check.outputs.will_release == 'true'
+      id: changelog
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        # Generate changelog in dry-run mode
+        poetry run semantic-release changelog > changelog_preview.md
+        echo "changelog_generated=true" >> $GITHUB_OUTPUT
+
+    - name: Build preview package
+      if: steps.release_check.outputs.will_release == 'true'
+      run: |
+        # Update version files for preview (but don't commit)
+        poetry run semantic-release version --no-commit --no-tag --no-push
+        
+        # Build the package
+        poetry build
+        
+        # Show what was built
+        ls -la dist/
+
+    - name: Show package info
+      if: steps.release_check.outputs.will_release == 'true'
+      run: |
+        echo "📦 Package build summary:"
+        echo "Version: ${{ steps.release_check.outputs.next_version }}"
+        echo "Files in dist/:"
+        ls -la dist/
+        
+        # Store build info for comment
+        echo "BUILD_INFO<<EOF" >> $GITHUB_ENV
+        echo "**Version:** \`${{ steps.release_check.outputs.next_version }}\`" >> $GITHUB_ENV
+        echo "" >> $GITHUB_ENV
+        echo "**Built files:**" >> $GITHUB_ENV
+        for file in dist/*; do
+          if [ -f "$file" ]; then
+            size=$(ls -lh "$file" | awk '{print $5}')
+            echo "- \`$(basename "$file")\` ($size)" >> $GITHUB_ENV
+          fi
+        done
+        echo "EOF" >> $GITHUB_ENV
+
+    - name: Prepare comment body for release
+      if: steps.release_check.outputs.will_release == 'true'
+      run: |
+        echo "COMMENT_BODY<<EOF" >> $GITHUB_ENV
+        echo "## 🚀 Expected Release Preview" >> $GITHUB_ENV
+        echo "" >> $GITHUB_ENV
+        echo "✅ **This PR will trigger a release**" >> $GITHUB_ENV
+        echo "📦 **Expected version:** \`${{ steps.release_check.outputs.next_version }}\`" >> $GITHUB_ENV
+        echo "" >> $GITHUB_ENV
+        
+        # Add changelog if available
+        if [ -f "changelog_preview.md" ]; then
+          echo "### 📝 Expected Changelog" >> $GITHUB_ENV
+          echo "" >> $GITHUB_ENV
+          echo "\`\`\`markdown" >> $GITHUB_ENV
+          cat changelog_preview.md >> $GITHUB_ENV
+          echo "\`\`\`" >> $GITHUB_ENV
+          echo "" >> $GITHUB_ENV
+        fi
+        
+        echo "### 📦 Package Build" >> $GITHUB_ENV
+        echo "$BUILD_INFO" >> $GITHUB_ENV
+        echo "" >> $GITHUB_ENV
+        echo "> **Note:** This is a preview. The actual release will happen when this PR is merged to master." >> $GITHUB_ENV
+        echo "EOF" >> $GITHUB_ENV
+
+    - name: Prepare comment body for no release
+      if: steps.release_check.outputs.will_release == 'false'
+      run: |
+        echo "COMMENT_BODY<<EOF" >> $GITHUB_ENV
+        echo "## 🚀 Expected Release Preview" >> $GITHUB_ENV
+        echo "" >> $GITHUB_ENV
+        echo "ℹ️ **No release will be triggered**" >> $GITHUB_ENV
+        echo "" >> $GITHUB_ENV
+        echo "This PR does not contain changes that would trigger a semantic release." >> $GITHUB_ENV
+        echo "To trigger a release, ensure your commits follow the conventional commit format with appropriate types (\`feat\`, \`fix\`, etc.)." >> $GITHUB_ENV
+        echo "EOF" >> $GITHUB_ENV
+
+    - name: Create or update comment
+      uses: peter-evans/create-or-update-comment@v4
+      with:
+        issue-number: ${{ github.event.pull_request.number }}
+        body: ${{ env.COMMENT_BODY }}
+        edit-mode: replace

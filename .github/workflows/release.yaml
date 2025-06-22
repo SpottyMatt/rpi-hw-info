@@ -1,0 +1,79 @@
+name: Release and Publish to PyPI
+
+on:
+  push:
+    branches:
+      - master
+
+env:
+  CI_PYTHON_VERSION: '3.10'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    concurrency: release
+    permissions:
+      id-token: write  # For PyPI trusted publishing
+      contents: write  # For creating releases
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    # poetry has to be present to be used as a cache :/
+    - run: pipx install poetry
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.CI_PYTHON_VERSION }}
+        cache: 'poetry'
+
+    - name: Install dependencies
+      run: poetry install --only dev
+
+    - name: Python Semantic Release
+      id: release
+      run: poetry run semantic-release publish
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publish:
+    needs: release
+    # Only run if a new release was created
+    if: needs.release.outputs.released == 'true'
+    runs-on: ubuntu-latest
+    # Set up environment for PyPI Trusted Publisher
+    environment:
+      name: pypi
+      url: https://pypi.org/p/rpi-hw-info
+    
+    # Enable PyPI Trusted Publisher via permissions
+    permissions:
+      contents: read
+      id-token: write  # Required for PyPI's trusted publishing
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ needs.release.outputs.tag }}  # Checkout the tag created by semantic release
+    
+    # poetry has to be present to be used as a cache :/
+    - run: pipx install poetry
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.CI_PYTHON_VERSION }}
+        cache: 'poetry'
+    
+    - name: Install Dependencies
+      run: poetry install
+    
+    - name: Build
+      run: poetry build
+    
+    - name: Publish
+      uses: pypa/gh-action-pypi-publish@release/v1
+      # No more token needed - Trusted Publishers uses OIDC
