@@ -20,7 +20,12 @@ jobs:
       with:
         fetch-depth: 0  # Need full history for semantic-release
         token: ${{ secrets.GITHUB_TOKEN }}
-        
+    
+    - name: Configure git for semantic-release
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
     - name: Simulate merge to master
       run: |
         # Checkout the target branch (master)
@@ -42,11 +47,6 @@ jobs:
 
     - name: Install dependencies
       run: poetry install --only dev
-
-    - name: Configure git for semantic-release
-      run: |
-        git config --global user.name "github-actions[bot]"
-        git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
     - name: Check what release would be made
       id: release_check
