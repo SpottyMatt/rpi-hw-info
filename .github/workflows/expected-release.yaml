@@ -1,0 +1,182 @@
+name: Expected Release Preview
+
+on:
+  pull_request:
+    branches: [ master ]
+    types: [opened, synchronize, reopened]
+
+env:
+  CI_PYTHON_VERSION: '3.10'
+
+jobs:
+  preview-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write  # To post comments
+      id-token: write      # For TestPyPI publishing
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Need full history for semantic-release
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - run: pipx install poetry
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.CI_PYTHON_VERSION }}
+        cache: 'poetry'
+
+    - name: Install dependencies
+      run: poetry install --only dev
+
+    - name: Configure git for semantic-release
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+    - name: Check what release would be made
+      id: release_check
+      run: |
+        # Get the expected next version
+        NEXT_VERSION=$(poetry run semantic-release version --print)
+        echo "next_version=$NEXT_VERSION" >> $GITHUB_OUTPUT
+        
+        if [ "$NEXT_VERSION" != "No release will be made" ]; then
+          echo "will_release=true" >> $GITHUB_OUTPUT
+          echo "Expected next version: $NEXT_VERSION"
+        else
+          echo "will_release=false" >> $GITHUB_OUTPUT
+          echo "No release will be made"
+        fi
+
+    - name: Generate changelog preview
+      if: steps.release_check.outputs.will_release == 'true'
+      id: changelog
+      run: |
+        # Generate changelog in dry-run mode
+        poetry run semantic-release changelog --unreleased > changelog_preview.md
+        echo "changelog_generated=true" >> $GITHUB_OUTPUT
+
+    - name: Build preview package
+      if: steps.release_check.outputs.will_release == 'true'
+      run: |
+        # Update version files for preview (but don't commit)
+        poetry run semantic-release version --no-commit --no-tag --no-push
+        
+        # Build the package
+        poetry build
+        
+        # Show what was built
+        ls -la dist/
+
+    - name: Upload to TestPyPI (Optional)
+      if: steps.release_check.outputs.will_release == 'true' && contains(github.event.pull_request.labels.*.name, 'test-release')
+      run: |
+        # Install twine for uploading
+        pip install twine
+        
+        # Create a pre-release version for testing
+        PR_NUMBER=${{ github.event.pull_request.number }}
+        BASE_VERSION="${{ steps.release_check.outputs.next_version }}"
+        TEST_VERSION="${BASE_VERSION}-pr.${PR_NUMBER}.$(date +%Y%m%d%H%M%S)"
+        
+        echo "Publishing test version: $TEST_VERSION"
+        
+        # Update version in files for test release
+        sed -i "s/__version__ = '.*'/__version__ = '$TEST_VERSION'/" rpi_hw_info/__init__.py
+        
+        # Rebuild with test version
+        poetry build
+        
+        # Upload to TestPyPI
+        python -m twine upload --repository testpypi dist/* --verbose
+        
+        echo "Test package uploaded as: $TEST_VERSION"
+        echo "Install with: pip install -i https://test.pypi.org/simple/ rpi-hw-info==$TEST_VERSION"
+
+    - name: Show package info
+      if: steps.release_check.outputs.will_release == 'true'
+      run: |
+        echo "📦 Package build summary:"
+        echo "Version: ${{ steps.release_check.outputs.next_version }}"
+        echo "Files in dist/:"
+        ls -la dist/
+        echo ""
+        echo "Package contents:"
+        for file in dist/*.whl; do
+          if [ -f "$file" ]; then
+            echo "Contents of $file:"
+            python -m zipfile -l "$file" | head -20
+          fi
+        done
+
+    - name: Comment on PR
+      if: always()
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const willRelease = '${{ steps.release_check.outputs.will_release }}' === 'true';
+          const nextVersion = '${{ steps.release_check.outputs.next_version }}';
+          
+          let comment = '## 🚀 Expected Release Preview\n\n';
+          
+          if (willRelease) {
+            comment += `✅ **This PR will trigger a release**\n`;
+            comment += `📦 **Expected version:** \`${nextVersion}\`\n\n`;
+            
+            // Add changelog if available
+            const changelogGenerated = '${{ steps.changelog.outputs.changelog_generated }}' === 'true';
+            if (changelogGenerated) {
+              try {
+                const changelog = fs.readFileSync('changelog_preview.md', 'utf8');
+                comment += '### 📝 Expected Changelog\n\n';
+                comment += '```markdown\n' + changelog.trim() + '\n```\n\n';
+              } catch (error) {
+                comment += '_(Changelog preview not available)_\n\n';
+              }
+            }
+            
+            comment += '### 📦 Package Build\n';
+            comment += '- Package built successfully\n';
+            comment += '- Ready for TestPyPI upload\n\n';
+            comment += '> **Note:** This is a preview. The actual release will happen when this PR is merged to master.\n';
+          } else {
+            comment += 'ℹ️ **No release will be triggered**\n\n';
+            comment += 'This PR does not contain changes that would trigger a semantic release.\n';
+            comment += 'To trigger a release, ensure your commits follow the conventional commit format with appropriate types (feat, fix, etc.).\n';
+          }
+          
+          // Find existing comment
+          const { data: comments } = await github.rest.issues.listComments({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+          });
+          
+          const existingComment = comments.find(comment => 
+            comment.user.login === 'github-actions[bot]' && 
+            comment.body.includes('Expected Release Preview')
+          );
+          
+          if (existingComment) {
+            // Update existing comment
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: existingComment.id,
+              body: comment
+            });
+          } else {
+            // Create new comment
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: comment
+            });
+          } 

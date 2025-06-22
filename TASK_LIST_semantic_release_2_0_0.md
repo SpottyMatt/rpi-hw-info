@@ -29,7 +29,12 @@
 - [ ] Execute actual release to create 2.0.0
 - [ ] Verify release was published correctly
 
-### 5. Cleanup & Verification
+### 5. Enhanced CI/CD Features
+- [x] Create expected release preview workflow
+- [x] Add TestPyPI pre-release publishing capability
+- [x] Add PR comment automation for release previews
+
+### 6. Cleanup & Verification
 - [ ] Verify GitHub release was created
 - [ ] Verify PyPI package was published
 - [ ] Clean up any temporary changes
