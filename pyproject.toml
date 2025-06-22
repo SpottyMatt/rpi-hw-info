@@ -24,8 +24,12 @@ python = ">=3.7"
 optional = true
 
 [tool.poetry.group.dev.dependencies]
-pytest = {version = "^8.4.1", markers = "python_version >= '3.8'"}
-python-semantic-release = {version = "^10.1.0", markers = "python_version >= '3.8'"}
+# Pytest versions for different Python versions
+pytest = [
+    {version = "^8.4.1", markers = "python_version >= '3.10'"},
+    {version = "^7.0.0", markers = "python_version >= '3.7' and python_version < '3.10'"}
+]
+python-semantic-release = {version = "^10.1.0", markers = "python_version >= '3.10'"}
 
 [tool.poetry.scripts]
 rpi-hw-info = "rpi_hw_info.__main__:main"
