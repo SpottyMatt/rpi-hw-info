@@ -13,40 +13,58 @@ jobs:
         include:
           - python-version: '3.7'
             compatibility_mode: true
+            needs_custom_install: true
           - python-version: '3.8'
-            compatibility_mode: false
           - python-version: '3.9'
-            compatibility_mode: false
           - python-version: '3.10'
-            compatibility_mode: false
 
     steps:
     - uses: actions/checkout@v4
 
-    - name: Set up Python ${{ matrix.python-version }}
+    # Install Python based on installation type
+    - name: Standard Python Setup
+      if: ${{ !matrix.needs_custom_install }}
       uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
+        cache: 'poetry'
 
-    - name: Install dependencies
+    - name: Custom Python Setup
+      if: ${{ matrix.needs_custom_install }}
       run: |
-        python -m pip install --upgrade pip
-        pip install poetry
-        if [[ "${{ matrix.compatibility_mode }}" == "true" ]]; then
-          # Install just the package, no dev dependencies
-          poetry install --only main
+        sudo add-apt-repository ppa:deadsnakes/ppa
+        sudo apt-get update
+        sudo apt-get install -y python${{ matrix.python-version }} python${{ matrix.python-version }}-dev python${{ matrix.python-version }}-distutils
+        sudo apt-get install -y python3-pip
+        python${{ matrix.python-version }} -m pip install --upgrade pip setuptools wheel
+
+    # Set Python command based on installation type
+    - name: Set Python Command
+      id: set_python_cmd
+      run: |
+        if [[ "${{ matrix.needs_custom_install }}" == "true" ]]; then
+          echo "PYTHON_CMD=python${{ matrix.python-version }}" >> $GITHUB_ENV
         else
-          # Install with dev dependencies
-          poetry install
+          echo "PYTHON_CMD=python" >> $GITHUB_ENV
         fi
 
-    - name: Run tests
+    - name: Install Poetry
+      run: |
+        ${{ env.PYTHON_CMD }} -m pip install --upgrade pip
+        ${{ env.PYTHON_CMD }} -m pip install poetry
+
+    - name: Install Dependencies
       run: |
         if [[ "${{ matrix.compatibility_mode }}" == "true" ]]; then
-          # Run core tests only, using pytest directly
-          pip install pytest
-          python -m pytest tests/test_detector.py
+          ${{ env.PYTHON_CMD }} -m poetry install --only main
         else
-          # Run all tests
-          poetry run pytest
+          ${{ env.PYTHON_CMD }} -m poetry install
+        fi
+
+    - name: Run Tests
+      run: |
+        if [[ "${{ matrix.compatibility_mode }}" == "true" ]]; then
+          ${{ env.PYTHON_CMD }} -m pytest tests/test_detector.py
+        else
+          ${{ env.PYTHON_CMD }} -m poetry run pytest
         fi

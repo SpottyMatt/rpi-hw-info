@@ -1,22 +1,25 @@
 import unittest
 import subprocess
 from unittest import mock
+from io import BytesIO
 
 from rpi_hw_info.models import RPIModel
 from rpi_hw_info.detector import detect_rpi_model
 
-class MockPopen(object):
-	def __init__(self, stdout):
-		self.stdout = stdout
-
 class TestDetector(unittest.TestCase):
-	@mock.patch('subprocess.run')
-	def test_detect_rpi_model_3b(self, mock_run):
-		# Mock the subprocess.run call
-		mock_run.return_value = mock.Mock(
-			stdout="processor       : 0\nmodel name      : ARMv7 Processor\nRevision        : a02082\n",
-			returncode=0
+	@mock.patch('subprocess.Popen')
+	def test_detect_rpi_model_3b(self, mock_popen):
+		# Create a proper iterable object for the stdout
+		mock_stdout = BytesIO(
+			b"processor       : 0\n"
+			b"model name      : ARMv7 Processor\n"
+			b"Revision        : a02082\n"
 		)
+		
+		# Configure the mock process
+		mock_process = mock.Mock()
+		mock_process.stdout = mock_stdout
+		mock_popen.return_value = mock_process
 		
 		# Call the function under test
 		result = detect_rpi_model()
