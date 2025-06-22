@@ -54,15 +54,6 @@ jobs:
     - name: Check poetry.lock is up-to-date
       run: poetry check --lock
 
-    - name: Debug Poetry Environment
-      run: |
-        echo "Poetry version:"
-        poetry --version
-        echo "Poetry env info:"
-        poetry env info
-        echo "Poetry show pytest:"
-        poetry show pytest || echo "pytest not found in Poetry environment"
-
     - name: Install Dependencies
       run: |
         if [[ "${{ matrix.compatibility_mode }}" == "true" ]]; then
@@ -70,15 +61,6 @@ jobs:
         else
           poetry install
         fi
-
-    - name: Debug After Install
-      run: |
-        echo "Poetry env info after install:"
-        poetry env info
-        echo "Poetry show pytest after install:"
-        poetry show pytest || echo "pytest still not found"
-        echo "Poetry run which pytest:"
-        poetry run which pytest || echo "pytest not in PATH"
 
     - name: Run Tests
       run: |

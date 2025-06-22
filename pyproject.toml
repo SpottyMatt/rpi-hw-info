@@ -33,10 +33,11 @@ version = "0.0.0"  # This will be overridden by semantic-release
 optional = true
 
 [tool.poetry.group.dev.dependencies]
-# Pytest versions for different Python versions
+# Pytest versions for different Python versions using python property
 pytest = [
-    {version = "^8.4.1", markers = "python_version >= '3.10'"},
-    {version = "^7.0.0", markers = "python_version >= '3.7' and python_version < '3.10'"}
+    {version = "^8.4.1", python = ">=3.10"},
+    {version = "^7.4.4", python = ">=3.9,<3.10"},
+    {version = "^6.2.5", python = ">=3.7,<3.9"}
 ]
 python-semantic-release = {version = "^10.1.0", markers = "python_version >= '3.10'"}
 
