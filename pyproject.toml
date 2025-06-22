@@ -42,7 +42,8 @@ version_variable = [
 version_toml = [
     "pyproject.toml:tool.poetry.version"
 ]
-upload_to_pypi = false  # We'll handle PyPI upload via GitHub Actions
+branch = "master"
+upload_to_pypi = false
 upload_to_release = true
 build_command = "pip install poetry && poetry build"
 allow_zero_version = true
