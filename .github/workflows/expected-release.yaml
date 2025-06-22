@@ -131,6 +131,17 @@ jobs:
         echo "To trigger a release, ensure your commits follow the conventional commit format with appropriate types (\`feat\`, \`fix\`, etc.)." >> $GITHUB_ENV
         echo "EOF" >> $GITHUB_ENV
 
+    - name: Prepare fallback comment
+      if: always() && env.COMMENT_BODY == ''
+      run: |
+        echo "COMMENT_BODY<<EOF" >> $GITHUB_ENV
+        echo "## 🚀 Expected Release Preview" >> $GITHUB_ENV
+        echo "" >> $GITHUB_ENV
+        echo "⚠️ **Unable to determine release status**" >> $GITHUB_ENV
+        echo "" >> $GITHUB_ENV
+        echo "There was an error analyzing this PR for potential releases. Please check the workflow logs for details." >> $GITHUB_ENV
+        echo "EOF" >> $GITHUB_ENV
+
     - name: Create or update comment
       if: always()
       uses: peter-evans/create-or-update-comment@v4
