@@ -43,10 +43,14 @@ version_variable = [
 version_toml = [
     "pyproject.toml:tool.poetry.version"
 ]
-branch = "master"
 upload_to_pypi = false  # We'll handle PyPI upload via GitHub Actions
 upload_to_release = true
 build_command = "pip install poetry && poetry build"
+
+# Configure branch-specific release settings
+[tool.semantic_release.branches.pypi]
+match = "pypi"
+prerelease = false
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
