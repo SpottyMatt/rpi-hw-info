@@ -11,12 +11,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - python-version: '3.7'
-            compatibility_mode: true
-            needs_custom_install: true
           - python-version: '3.8'
           - python-version: '3.9'
           - python-version: '3.10'
+          - python-version: '3.11'
 
     steps:
     - uses: actions/checkout@v4
@@ -24,50 +22,17 @@ jobs:
     # poetry has to be present to be used as a cache :/
     - run: pipx install poetry
 
-    # Install Python based on installation type
-    - name: Standard Python Setup
-      if: ${{ !matrix.needs_custom_install }}
+    - name: Install Python
       uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
         cache: 'poetry'
-
-    - name: Custom Python Setup
-      if: ${{ matrix.needs_custom_install }}
-      run: |
-        sudo add-apt-repository ppa:deadsnakes/ppa
-        sudo apt-get update
-        sudo apt-get install -y python${{ matrix.python-version }} python${{ matrix.python-version }}-dev python${{ matrix.python-version }}-distutils python${{ matrix.python-version }}-venv
-        # Use ensurepip to avoid system package conflicts with typing_extensions
-        python${{ matrix.python-version }} -m ensurepip --upgrade
-        python${{ matrix.python-version }} -m pip install --upgrade setuptools wheel
-
-    # Set Python command based on installation type
-    - name: Set Python Command
-      id: set_python_cmd
-      run: |
-        if [[ "${{ matrix.needs_custom_install }}" == "true" ]]; then
-          echo "PYTHON_CMD=python${{ matrix.python-version }}" >> $GITHUB_ENV
-        else
-          echo "PYTHON_CMD=python" >> $GITHUB_ENV
-        fi
-
+    
     - name: Check poetry.lock is up-to-date
       run: poetry check --lock
 
     - name: Install Dependencies
-      run: |
-        if [[ "${{ matrix.compatibility_mode }}" == "true" ]]; then
-          poetry install --only main
-          ${{ env.PYTHON_CMD }} -m pip install pytest
-        else
-          poetry install --with dev
-        fi
+      run: poetry install --with dev
 
     - name: Run Tests
-      run: |
-        if [[ "${{ matrix.compatibility_mode }}" == "true" ]]; then
-          ${{ env.PYTHON_CMD }} -m pytest tests/test_detector.py
-        else
-          poetry run pytest
-        fi
+      run: poetry run pytest
