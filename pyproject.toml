@@ -46,6 +46,8 @@ version_toml = [
 upload_to_pypi = false  # We'll handle PyPI upload via GitHub Actions
 upload_to_release = true
 build_command = "pip install poetry && poetry build"
+allow_zero_version = true
+major_on_zero = true
 
 # Configure branch-specific release settings
 [tool.semantic_release.branches.pypi]
