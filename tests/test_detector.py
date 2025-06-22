@@ -1,5 +1,4 @@
 import unittest
-import subprocess
 from unittest import mock
 from io import BytesIO
 
