@@ -66,8 +66,7 @@ jobs:
         cache: 'poetry'
     
     - name: Build
-      run: |
-        poetry build
+      run: poetry build
     
     - name: Publish
       uses: pypa/gh-action-pypi-publish@release/v1
