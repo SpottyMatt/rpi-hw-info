@@ -68,7 +68,7 @@ jobs:
       id: changelog
       run: |
         # Generate changelog in dry-run mode
-        poetry run semantic-release changelog --unreleased > changelog_preview.md
+        poetry run semantic-release changelog > changelog_preview.md
         echo "changelog_generated=true" >> $GITHUB_OUTPUT
 
     - name: Build preview package
