@@ -37,9 +37,10 @@ jobs:
       run: |
         sudo add-apt-repository ppa:deadsnakes/ppa
         sudo apt-get update
-        sudo apt-get install -y python${{ matrix.python-version }} python${{ matrix.python-version }}-dev python${{ matrix.python-version }}-distutils
-        sudo apt-get install -y python3-pip
-        python${{ matrix.python-version }} -m pip install --upgrade pip setuptools wheel
+        sudo apt-get install -y python${{ matrix.python-version }} python${{ matrix.python-version }}-dev python${{ matrix.python-version }}-distutils python${{ matrix.python-version }}-venv
+        # Install pip using get-pip.py to avoid compatibility issues
+        curl -sS https://bootstrap.pypa.io/get-pip.py | python${{ matrix.python-version }}
+        python${{ matrix.python-version }} -m pip install --upgrade setuptools wheel
 
     # Set Python command based on installation type
     - name: Set Python Command
@@ -58,7 +59,7 @@ jobs:
       run: |
         if [[ "${{ matrix.compatibility_mode }}" == "true" ]]; then
           poetry install --only main
-          pip install pytest
+          ${{ env.PYTHON_CMD }} -m pip install pytest
         else
           poetry install --with dev
         fi
