@@ -15,13 +15,14 @@
 - [x] Identify optimal approach for 2.0.0 release
 
 ### 2. Configuration Updates
-- [ ] Update semantic-release branch configuration to include `pypi` branch
-- [ ] Ensure version variables are correctly configured
-- [ ] Test semantic-release configuration
+- [x] Update semantic-release branch configuration to include `pypi` branch
+- [x] Ensure version variables are correctly configured
+- [x] Test semantic-release configuration
 
 ### 3. Breaking Change Commit
-- [ ] Create a breaking change commit to trigger major version bump
-- [ ] Verify semantic-release detects the breaking change
+- [x] Create a breaking change commit to trigger major version bump
+- [x] Verify semantic-release detects the breaking change
+- [x] Create temporary tag v1.9.9 to enable proper version bumping
 
 ### 4. Release Execution
 - [ ] Test semantic-release in dry-run mode
