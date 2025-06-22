@@ -20,6 +20,17 @@ jobs:
       with:
         fetch-depth: 0  # Need full history for semantic-release
         token: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Simulate merge to master
+      run: |
+        # Checkout the target branch (master)
+        git checkout ${{ github.event.pull_request.base.ref }}
+        
+        # Merge in the PR changes to simulate post-merge state
+        git merge --no-ff ${{ github.event.pull_request.head.sha }} -m "Simulated merge for release preview"
+        
+        echo "Now on branch: $(git branch --show-current)"
+        echo "Latest commit: $(git log -1 --oneline)"
 
     - run: pipx install poetry
 
