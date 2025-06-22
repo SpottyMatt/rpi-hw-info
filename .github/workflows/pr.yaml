@@ -21,6 +21,9 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    # poetry has to be present to be used as a cache :/
+    - run: pipx install poetry
+
     # Install Python based on installation type
     - name: Standard Python Setup
       if: ${{ !matrix.needs_custom_install }}
@@ -47,11 +50,6 @@ jobs:
         else
           echo "PYTHON_CMD=python" >> $GITHUB_ENV
         fi
-
-    - name: Install Poetry
-      run: |
-        ${{ env.PYTHON_CMD }} -m pip install --upgrade pip
-        ${{ env.PYTHON_CMD }} -m pip install poetry
 
     - name: Install Dependencies
       run: |
