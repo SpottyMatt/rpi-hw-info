@@ -14,7 +14,6 @@ jobs:
     permissions:
       contents: read
       pull-requests: write  # To post comments
-      id-token: write      # For TestPyPI publishing
 
     steps:
     - uses: actions/checkout@v4
@@ -73,31 +72,6 @@ jobs:
         # Show what was built
         ls -la dist/
 
-    - name: Upload to TestPyPI (Optional)
-      if: steps.release_check.outputs.will_release == 'true' && contains(github.event.pull_request.labels.*.name, 'test-release')
-      run: |
-        # Install twine for uploading
-        pip install twine
-        
-        # Create a pre-release version for testing
-        PR_NUMBER=${{ github.event.pull_request.number }}
-        BASE_VERSION="${{ steps.release_check.outputs.next_version }}"
-        TEST_VERSION="${BASE_VERSION}-pr.${PR_NUMBER}.$(date +%Y%m%d%H%M%S)"
-        
-        echo "Publishing test version: $TEST_VERSION"
-        
-        # Update version in files for test release
-        sed -i "s/__version__ = '.*'/__version__ = '$TEST_VERSION'/" rpi_hw_info/__init__.py
-        
-        # Rebuild with test version
-        poetry build
-        
-        # Upload to TestPyPI
-        python -m twine upload --repository testpypi dist/* --verbose
-        
-        echo "Test package uploaded as: $TEST_VERSION"
-        echo "Install with: pip install -i https://test.pypi.org/simple/ rpi-hw-info==$TEST_VERSION"
-
     - name: Show package info
       if: steps.release_check.outputs.will_release == 'true'
       run: |
@@ -105,78 +79,62 @@ jobs:
         echo "Version: ${{ steps.release_check.outputs.next_version }}"
         echo "Files in dist/:"
         ls -la dist/
-        echo ""
-        echo "Package contents:"
-        for file in dist/*.whl; do
+        
+        # Store build info for comment
+        echo "BUILD_INFO<<EOF" >> $GITHUB_ENV
+        echo "**Version:** \`${{ steps.release_check.outputs.next_version }}\`" >> $GITHUB_ENV
+        echo "" >> $GITHUB_ENV
+        echo "**Built files:**" >> $GITHUB_ENV
+        for file in dist/*; do
           if [ -f "$file" ]; then
-            echo "Contents of $file:"
-            python -m zipfile -l "$file" | head -20
+            size=$(ls -lh "$file" | awk '{print $5}')
+            echo "- \`$(basename "$file")\` ($size)" >> $GITHUB_ENV
           fi
         done
+        echo "EOF" >> $GITHUB_ENV
 
-    - name: Comment on PR
+    - name: Prepare comment body for release
+      if: steps.release_check.outputs.will_release == 'true'
+      run: |
+        echo "COMMENT_BODY<<EOF" >> $GITHUB_ENV
+        echo "## 🚀 Expected Release Preview" >> $GITHUB_ENV
+        echo "" >> $GITHUB_ENV
+        echo "✅ **This PR will trigger a release**" >> $GITHUB_ENV
+        echo "📦 **Expected version:** \`${{ steps.release_check.outputs.next_version }}\`" >> $GITHUB_ENV
+        echo "" >> $GITHUB_ENV
+        
+        # Add changelog if available
+        if [ -f "changelog_preview.md" ]; then
+          echo "### 📝 Expected Changelog" >> $GITHUB_ENV
+          echo "" >> $GITHUB_ENV
+          echo "\`\`\`markdown" >> $GITHUB_ENV
+          cat changelog_preview.md >> $GITHUB_ENV
+          echo "\`\`\`" >> $GITHUB_ENV
+          echo "" >> $GITHUB_ENV
+        fi
+        
+        echo "### 📦 Package Build" >> $GITHUB_ENV
+        echo "$BUILD_INFO" >> $GITHUB_ENV
+        echo "" >> $GITHUB_ENV
+        echo "> **Note:** This is a preview. The actual release will happen when this PR is merged to master." >> $GITHUB_ENV
+        echo "EOF" >> $GITHUB_ENV
+
+    - name: Prepare comment body for no release
+      if: steps.release_check.outputs.will_release == 'false'
+      run: |
+        echo "COMMENT_BODY<<EOF" >> $GITHUB_ENV
+        echo "## 🚀 Expected Release Preview" >> $GITHUB_ENV
+        echo "" >> $GITHUB_ENV
+        echo "ℹ️ **No release will be triggered**" >> $GITHUB_ENV
+        echo "" >> $GITHUB_ENV
+        echo "This PR does not contain changes that would trigger a semantic release." >> $GITHUB_ENV
+        echo "To trigger a release, ensure your commits follow the conventional commit format with appropriate types (\`feat\`, \`fix\`, etc.)." >> $GITHUB_ENV
+        echo "EOF" >> $GITHUB_ENV
+
+    - name: Create or update comment
       if: always()
-      uses: actions/github-script@v7
+      uses: peter-evans/create-or-update-comment@v4
       with:
-        script: |
-          const fs = require('fs');
-          const willRelease = '${{ steps.release_check.outputs.will_release }}' === 'true';
-          const nextVersion = '${{ steps.release_check.outputs.next_version }}';
-          
-          let comment = '## 🚀 Expected Release Preview\n\n';
-          
-          if (willRelease) {
-            comment += `✅ **This PR will trigger a release**\n`;
-            comment += `📦 **Expected version:** \`${nextVersion}\`\n\n`;
-            
-            // Add changelog if available
-            const changelogGenerated = '${{ steps.changelog.outputs.changelog_generated }}' === 'true';
-            if (changelogGenerated) {
-              try {
-                const changelog = fs.readFileSync('changelog_preview.md', 'utf8');
-                comment += '### 📝 Expected Changelog\n\n';
-                comment += '```markdown\n' + changelog.trim() + '\n```\n\n';
-              } catch (error) {
-                comment += '_(Changelog preview not available)_\n\n';
-              }
-            }
-            
-            comment += '### 📦 Package Build\n';
-            comment += '- Package built successfully\n';
-            comment += '- Ready for TestPyPI upload\n\n';
-            comment += '> **Note:** This is a preview. The actual release will happen when this PR is merged to master.\n';
-          } else {
-            comment += 'ℹ️ **No release will be triggered**\n\n';
-            comment += 'This PR does not contain changes that would trigger a semantic release.\n';
-            comment += 'To trigger a release, ensure your commits follow the conventional commit format with appropriate types (feat, fix, etc.).\n';
-          }
-          
-          // Find existing comment
-          const { data: comments } = await github.rest.issues.listComments({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            issue_number: context.issue.number,
-          });
-          
-          const existingComment = comments.find(comment => 
-            comment.user.login === 'github-actions[bot]' && 
-            comment.body.includes('Expected Release Preview')
-          );
-          
-          if (existingComment) {
-            // Update existing comment
-            await github.rest.issues.updateComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              comment_id: existingComment.id,
-              body: comment
-            });
-          } else {
-            // Create new comment
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: comment
-            });
-          } 
+        issue-number: ${{ github.event.pull_request.number }}
+        body: ${{ env.COMMENT_BODY }}
+        edit-mode: replace 
