@@ -58,8 +58,9 @@ jobs:
       run: |
         if [[ "${{ matrix.compatibility_mode }}" == "true" ]]; then
           poetry install --only main
+          pip install pytest
         else
-          poetry install
+          poetry install --with dev
         fi
 
     - name: Run Tests
