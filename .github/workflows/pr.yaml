@@ -49,3 +49,4 @@ jobs:
         else
           # Run all tests
           poetry run pytest
+        fi
