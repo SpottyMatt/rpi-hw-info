@@ -1,0 +1,47 @@
+[tool.poetry]
+name = "rpi-hw-info"
+version = "0.0.0"  # This will be overridden by semantic-release
+description = "Raspberry Pi Hardware Info Detector"
+authors = ["Original Author <author@example.com>"]
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/username/rpi-hw-info"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: System :: Hardware",
+    "Operating System :: POSIX :: Linux"
+]
+
+[tool.poetry.dependencies]
+python = ">=3.7"
+
+[tool.poetry.group.dev]
+optional = true
+
+[tool.poetry.group.dev.dependencies]
+pytest = {version = "^8.4.1", markers = "python_version >= '3.10'"}
+python-semantic-release = {version = "^10.1.0", markers = "python_version >= '3.10'"}
+
+[tool.poetry.scripts]
+rpi-hw-info = "rpi_hw_info.__main__:main"
+
+[tool.semantic_release]
+version_variable = [
+    "rpi_hw_info/__init__.py:__version__"
+]
+version_toml = [
+    "pyproject.toml:tool.poetry.version"
+]
+branch = "master"
+upload_to_pypi = false  # We'll handle PyPI upload via GitHub Actions
+upload_to_release = true
+build_command = "pip install poetry && poetry build"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
