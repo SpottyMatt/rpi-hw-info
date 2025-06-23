@@ -58,10 +58,12 @@ jobs:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         # Get the expected next version
-        NEXT_VERSION=$(poetry run semantic-release version --print)
+        poetry run semantic-release version --print > next_version.txt 2>next_version_error.txt
+        NEXT_VERSION=$(cat next_version.txt)
+        NEXT_VERSION_ERROR=$(cat next_version_error.txt)
         echo "next_version=$NEXT_VERSION" >> $GITHUB_OUTPUT
         
-        if [ -n "$NEXT_VERSION" ] && [[ "$NEXT_VERSION" != *"No release will be made"* ]]; then
+        if [ -n "$NEXT_VERSION" ] && [[ "$NEXT_VERSION_ERROR" != *"No release will be made"* ]]; then
           echo "will_release=true" >> $GITHUB_OUTPUT
           echo "Expected next version: $NEXT_VERSION"
         else
