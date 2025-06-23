@@ -54,17 +54,19 @@ jobs:
 
     - name: Check what release would be made
       id: release_check
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         # Get the expected next version
         NEXT_VERSION=$(poetry run semantic-release version --print)
         echo "next_version=$NEXT_VERSION" >> $GITHUB_OUTPUT
         
-        if [ "$NEXT_VERSION" != "No release will be made" ]; then
+        if [ -n "$NEXT_VERSION" ] && [[ "$NEXT_VERSION" != *"No release will be made"* ]]; then
           echo "will_release=true" >> $GITHUB_OUTPUT
           echo "Expected next version: $NEXT_VERSION"
         else
           echo "will_release=false" >> $GITHUB_OUTPUT
-          echo "No release will be made"
+          echo "No release will be made: $NEXT_VERSION"
         fi
 
     - name: Generate changelog preview
@@ -74,11 +76,13 @@ jobs:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         # Generate changelog in dry-run mode
-        poetry run semantic-release changelog > changelog_preview.md
+        poetry run semantic-release changelog | tee changelog_preview.md
         echo "changelog_generated=true" >> $GITHUB_OUTPUT
 
     - name: Build preview package
       if: steps.release_check.outputs.will_release == 'true'
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         # Update version files for preview (but don't commit)
         poetry run semantic-release version --no-commit --no-tag --no-push
@@ -148,9 +152,19 @@ jobs:
         echo "To trigger a release, ensure your commits follow the conventional commit format with appropriate types (\`feat\`, \`fix\`, etc.)." >> $GITHUB_ENV
         echo "EOF" >> $GITHUB_ENV
 
+    - name: Find existing comment
+      uses: peter-evans/find-comment@v3
+      id: find_comment
+      with:
+        issue-number: ${{ github.event.pull_request.number }}
+        comment-author: 'github-actions[bot]'
+        body-includes: '## 🚀 Expected Release Preview'
+
     - name: Create or update comment
       uses: peter-evans/create-or-update-comment@v4
       with:
         issue-number: ${{ github.event.pull_request.number }}
+        comment-id: ${{ steps.find_comment.outputs.comment-id }}
         body: ${{ env.COMMENT_BODY }}
         edit-mode: replace
+
