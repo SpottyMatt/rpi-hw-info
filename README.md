@@ -7,7 +7,7 @@ A Python tool to detect Raspberry Pi hardware information, including model name,
 ### From PyPI
 
 ```bash
-pip install rpi-hw-info
+pipx install rpi-hw-info
 ```
 
 ### From Source
