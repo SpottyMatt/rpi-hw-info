@@ -5,6 +5,10 @@ on:
     branches: [ master ]
     types: [opened, synchronize, reopened]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-expected-release
+  cancel-in-progress: true
+
 env:
   CI_PYTHON_VERSION: '3.10'
 
