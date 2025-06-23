@@ -16,6 +16,7 @@ jobs:
   release:
     outputs:
       released: ${{ steps.release.outputs.released }}
+      tag: ${{ steps.release.outputs.tag }}
     runs-on: ubuntu-latest
     concurrency: release
     permissions:
