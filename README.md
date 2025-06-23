@@ -73,16 +73,14 @@ Example:
 
 If the hardware info cannot be detected, an error message will be printed to stderr and the process will exit with a non-zero status code.
 
-## Compatibility
-
-- Python 3.7+
-- Tested on Python 3.7, 3.9, and 3.11
 
 ## Technical Details
 
 Detection is based on decoding the hardware "revision" per the [Raspberry Pi Documentation](https://www.raspberrypi.org/documentation/hardware/raspberrypi/revision-codes/README.md).
 
-## Versioning
+## Developer Guide
+
+### Versioning
 
 This project uses Semantic Versioning with automatic version calculation based on [Conventional Commits](https://www.conventionalcommits.org/).
 
@@ -90,23 +88,6 @@ Version numbers are automatically calculated based on commit messages:
 - `fix:` commits increment the patch version (0.0.X)
 - `feat:` commits increment the minor version (0.X.0)
 - Commits with `BREAKING CHANGE:` in the description increment the major version (X.0.0)
-
-### Commit Message Format
-
-```
-<type>[optional scope]: <description>
-
-[optional body]
-
-[optional footer(s)]
-```
-
-Examples:
-```
-feat: add support for Raspberry Pi 5B
-fix: correct detection of revision codes
-feat!: change output format (this is a breaking change)
-```
 
 ### Release Process
 
@@ -120,14 +101,3 @@ No manual version management is needed - just write proper commit messages!
 ## Publishing to PyPI
 
 This project uses GitHub Actions to automatically publish releases to PyPI using [PyPI Trusted Publishers](https://docs.pypi.org/trusted-publishers/creating-a-project-through-oidc/).
-
-To set up Trusted Publishers for this project:
-
-1. Create a "pending" publisher on PyPI for this project name
-2. Set up the GitHub environment named "pypi" in your repository settings
-3. The workflow will automatically publish to PyPI when appropriate commits are pushed
-
-## License
-
-[MIT](LICENSE)
-
