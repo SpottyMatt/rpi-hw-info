@@ -37,7 +37,7 @@ jobs:
 
     - name: Python Semantic Release
       id: release
-      run: poetry run semantic-release -v publish
+      run: poetry run semantic-release -v version
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
